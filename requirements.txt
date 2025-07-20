@@ -1,0 +1,11 @@
+langchain
+python-dotenv
+ipykernel
+langchain-groq
+langchain-google-genai
+langchain_community
+pypdf
+faiss-cpu
+
+
+-e . # For installing local package
