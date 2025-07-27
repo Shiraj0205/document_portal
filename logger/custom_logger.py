@@ -4,19 +4,19 @@ import logging
 
 class CustomLogger:
 
-    def __init__(self):
-        log_dir = os.path.join(os.getcwd(), "logs")
+    def __init__(self, log_dir="logs"):
+        log_dir = os.path.join(os.getcwd(), log_dir)
         os.makedirs(log_dir, exist_ok=True)
 
         # Create a log file with the current timestamp
-        LOG_FILE_NAME = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
-        LOG_FILE_PATH = os.path.join(log_dir, LOG_FILE_NAME)
+        log_file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
+        log_file_path = os.path.join(log_dir, log_file_name)
 
         # Configure the logging
         logging.basicConfig(
             level=logging.INFO,
             format="[%(asctime)s] - %(name)s (Line: %(lineno)d) - %(levelname)s - %(message)s",
-            filename=LOG_FILE_PATH
+            filename=log_file_path
         )
 
     # Create a logger instance
