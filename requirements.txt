@@ -6,6 +6,7 @@ langchain-google-genai
 langchain_community
 pypdf
 faiss-cpu
+structlog
+PyMuPDF
 
-
--e . # For installing local package
+-e . # For installing local packages
