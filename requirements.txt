@@ -8,5 +8,6 @@ pypdf
 faiss-cpu
 structlog
 PyMuPDF
+langchain-openai
 
 -e . # For installing local packages
