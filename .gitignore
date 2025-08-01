@@ -4,7 +4,7 @@ document_portal.egg-info
 venv/
 __pycache__/
 *.pyc
-test.py
+#test.py
 logs/*
 notebook/logs/*
 data/
