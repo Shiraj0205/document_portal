@@ -5,11 +5,11 @@ from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
 
 
-class DocumentAnalyzer:
+class DocumentIngestion:
     """
         DocumentAnalyzer Class
     """
-    def __init__(self, base_dir):
+    def __init__(self, base_dir="data\document_compare"):
         self.log = CustomLogger().get_logger(__name__)
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -36,8 +36,8 @@ class DocumentAnalyzer:
             self.delete_existing_file()
             self.log.info("Existing file deleted successfully")
             
-            ref_path = self.base_dir/reference_file
-            act_path = self.base_dir/actual_file
+            ref_path = self.base_dir / reference_file.name
+            act_path = self.base_dir/actual_file.name
 
             if not reference_file.name.endswith(".pdf") or not actual_file.name.endswith(".pdf"):
                 raise ValueError("Only PDF file are allowed")
@@ -60,7 +60,7 @@ class DocumentAnalyzer:
         Read PDF Document
         """
         try:
-            with fitz.open(self, pdf_path) as doc:
+            with fitz.open(pdf_path) as doc:
                 if doc.is_encrypted:
                     raise ValueError(f"PDF is encrypted {pdf_path.name}")
                 
@@ -77,3 +77,23 @@ class DocumentAnalyzer:
         except Exception as e:
             self.log.error("Error reading document. {e}")
             raise DocumentPortalException(error_message="Error reading document", error_details=e) from e
+        
+    def combine_documents(self) -> str:
+        try:
+            content_dict = {}
+            doc_parts = []
+
+            for filename in sorted(self.base_dir.iterdir()):
+                if filename.is_file() and filename.suffix == ".pdf":
+                    content_dict[filename.name] = self.read_pdf(filename)
+            
+            for filename, content in content_dict.items():
+                doc_parts.append(f"Document: {filename}\n{content}")
+            
+            combined_text = "\n\n".join(doc_parts)
+            self.log.info("Documents combined", count=len(doc_parts))
+            return combined_text
+
+        except Exception as e:
+            self.log.error("An error occured combining documents", str(e))
+            raise DocumentPortalException("An error occured combining documents", sys) from e
