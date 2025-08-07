@@ -3,41 +3,45 @@ from pathlib import Path
 import fitz
 from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
+from datetime import datetime, timezone
+import uuid
 
 
 class DocumentIngestion:
     """
         DocumentAnalyzer Class
     """
-    def __init__(self, base_dir="data\document_compare"):
+    def __init__(self, base_dir: str ="data/document_compare", session_id = None):
         self.log = CustomLogger().get_logger(__name__)
         self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.session_id = session_id or f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        self.session_path = self.base_dir / self.session_id
+        self.session_path.mkdir(parents=True, exist_ok=True)
 
-    def delete_existing_file(self):
-        """
-        Delete existing file
-        """
-        try:
-            if self.base_dir.exists() and self.base_dir.is_dir():
-                for file in self.base_dir.iterdir():
-                    if file.is_file():
-                        file.unlink()
-                        self.log.info("File deleted", directory=str(self.base_dir))
-        except Exception as e:
-            self.log.error("Error deleting document. {e}")
-            raise DocumentPortalException(error_message="Error deleting document", error_details=e) from e
+    # def delete_existing_file(self):
+    #     """
+    #     Delete existing file
+    #     """
+    #     try:
+    #         if self.base_dir.exists() and self.base_dir.is_dir():
+    #             for file in self.base_dir.iterdir():
+    #                 if file.is_file():
+    #                     file.unlink()
+    #                     self.log.info("File deleted", directory=str(self.base_dir))
+    #     except Exception as e:
+    #         self.log.error("Error deleting document. {e}")
+    #         raise DocumentPortalException(error_message="Error deleting document", error_details=e) from e
 
     def save_uploaded_file(self, reference_file, actual_file):
         """
         Save uploaded 
         """
         try:
-            self.delete_existing_file()
+            #self.delete_existing_file()
             self.log.info("Existing file deleted successfully")
             
-            ref_path = self.base_dir / reference_file.name
-            act_path = self.base_dir/actual_file.name
+            ref_path = self.session_path / reference_file.name
+            act_path = self.session_path / actual_file.name
 
             if not reference_file.name.endswith(".pdf") or not actual_file.name.endswith(".pdf"):
                 raise ValueError("Only PDF file are allowed")
@@ -48,7 +52,7 @@ class DocumentIngestion:
             with open(ref_path, "wb") as f:
                 f.write(reference_file.getbuffer())
 
-            self.log.info("Files saved", reference=str(ref_path), actual=str(act_path))
+            self.log.info("Files saved", reference=str(ref_path), actual=str(act_path), session=self.session_id)
             return ref_path, act_path
 
         except Exception as e:
@@ -97,3 +101,24 @@ class DocumentIngestion:
         except Exception as e:
             self.log.error("An error occured combining documents", str(e))
             raise DocumentPortalException("An error occured combining documents", sys) from e
+        
+    def clean_old_session(self, keep_latest = 3):
+        """
+        Method to remove older session data folders. Keep latest n data folders
+        """
+        try:
+            print(f"Base Dir : {self.base_dir}")
+            session_folders_sorted = sorted(
+                [f for f in self.base_dir.iterdir() if f.is_dir()],
+                reverse=True
+                )
+            
+            for folder in session_folders_sorted:
+                for file in folder.iterdir():
+                    file.unlink()
+                folder.rmdir()
+                self.log.info("Old session folder deleted", path = str(folder))
+
+        except Exception as e:
+            self.log.error("Failed to remove old session data folders.", str(e))
+            raise DocumentPortalException(error_message="Failed to remove old session data folders.", error_details=sys) from e

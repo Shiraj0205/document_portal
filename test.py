@@ -84,8 +84,10 @@ def test_compare_documents():
     ref_upload = FakeUpload(ref_path)
     act_upload = FakeUpload(act_path)
 
+    # Save Files and Combine Text
     ref_file, act_file = comparer.save_uploaded_file(reference_file=ref_upload, actual_file=act_upload)
     combined_text = comparer.combine_documents()
+    comparer.clean_old_session(keep_latest=3)
 
     print("\n Combined text preview (First 100 chars):\n")
     print(combined_text)
@@ -100,4 +102,3 @@ def test_compare_documents():
 # Invoke Test
 if __name__ == "__main__":
         test_compare_documents()
-

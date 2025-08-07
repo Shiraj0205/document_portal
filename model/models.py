@@ -31,6 +31,9 @@ class SummaryResponse(RootModel[list[ChangeFormat]]):
     pass
 
 class PromptType(str, Enum):
+    """
+    Prompt Type
+    """
     DOCUMENT_ANALYSIS = "document_analysis"
     DOCUMENT_COMPARISON = "document_comparison"
     CONTEXTUALIZE_QUESTION = "contextualize_question"
