@@ -47,14 +47,14 @@ class SingleDocIngestor:
                 documents.extend(docs)
             
             self.log.info("PDF file loaded", count=len(documents))
-            return self.create_retriever(documents)
+            return self._create_retriever(documents)
 
         except Exception as e:
             self.log.error("Error in ingesting files", str(e))
             raise DocumentPortalException(error_message="Error in ingesting files", error_details=sys) from e
         
 
-    def create_retriever(self, documents):
+    def _create_retriever(self, documents):
         """
         Create Retriever
         """

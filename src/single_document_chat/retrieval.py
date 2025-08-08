@@ -13,17 +13,19 @@ from logger.custom_logger import CustomLogger
 from prompt.prompt_library import PROMPT_REGISTRY
 from model.models import PromptType
 import uuid
+import streamlit as st
 
 class ConversationalRAG:
 
-    def __init__(self, session_id, retriever) -> None:
+    def __init__(self, session_id: str, retriever):
         try:
             self.log = CustomLogger().get_logger(__name__)
             self.session_id = session_id
             self.retriever = retriever
-            self.llm = self._load_llm
-            self.contextualize_prompt = PROMPT_REGISTRY[PromptType.CONTEXTUALIZE_QUESTION]
-            self.qa_prompt = PROMPT_REGISTRY[PromptType.CONTEXT_QA]
+            self.llm = self._load_llm()
+            self.contextualize_prompt = PROMPT_REGISTRY[PromptType.CONTEXTUALIZE_QUESTION.value]
+            self.qa_prompt = PROMPT_REGISTRY[PromptType.CONTEXT_QA.value]
+            
             self.history_aware_retriever = create_history_aware_retriever(
                 self.llm, self.retriever, self.contextualize_prompt
             )
@@ -51,22 +53,30 @@ class ConversationalRAG:
         """
         try:
             llm = ModelLoader().load_llm()
-            self.log.Info("LLM loaded successfully", llm.__class__.__name__)
+            #self.log.info("LLM loaded successfully.", class_name=llm.__class__.__name__)
+            self.log.info("LLM loaded successfully.")
             return llm
         except Exception as e:
             self.log.error("Failed to load LLM", error = str(e))
             raise DocumentPortalException(error_message="Failed to load LLM.", error_details=sys) from e
         
-    def _get_session_history(self, session_id: str):
+    def _get_session_history(self, session_id: str) -> BaseChatMessageHistory:
         """
         Get Session History
         """
         try:
-            pass
+            if "store" not in st.session_state:
+                st.session_state.store = {}
 
+            if session_id not in st.session_state.store:
+                st.session_state.store[session_id] = ChatMessageHistory()
+                self.log.info("New chat session history created", session_id=session_id)
+
+            return st.session_state.store[session_id]
         except Exception as e:
-            self.log.error("Failed to access session history.", error = str(e))
-            raise DocumentPortalException(error_message="Failed to access session history.", error_details=sys) from e
+            self.log.error("Failed to access session history", session_id=session_id, error=str(e))
+            raise DocumentPortalException("Failed to retrieve session history", sys) from e
+
         
     def load_retriever_from_files(self, index_path: str):
         """
@@ -85,20 +95,21 @@ class ConversationalRAG:
             self.log.error("Failed to load retriever from FAISS.", error = str(e))
             raise DocumentPortalException(error_message="Failed to load retriever from FAISS.", error_details=sys) from e
         
-    def invoke(self, user_input: str):
+    def invoke(self, user_input: str) -> str:
         """
         Invoke conversational RAG
         """
         try:
-            respons = self.chain.invoke(
+            response = self.chain.invoke(
                 { "input": user_input }, 
                 config={"configurable": {"session_id": self.session_id}}
                 )
-            answer = respons.get("answer", "No answer")
+            answer = response.get("answer", "No answer")
+            
             if not answer:
                 self.log.warning("No answer received", session_id = self.session_id)
 
-            self.log.info("Chain invoked successfully", session_id=self.session_id, user_input=user_input, answer_preview=respons[:200])
+            self.log.info("Chain invoked successfully", session_id=self.session_id, user_input=user_input, answer_preview=answer[:200])
             return answer
 
 
