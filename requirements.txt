@@ -10,5 +10,9 @@ structlog
 PyMuPDF
 langchain-openai
 pandas
+streamlit
+langchain-core[tracing]
+pytest
+
 
 -e . # For installing local packages
