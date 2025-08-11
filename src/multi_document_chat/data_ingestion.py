@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 import uuid
 from utils.model_loader import ModelLoader
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
 
 
 class DocumentIngestor:
@@ -90,7 +91,16 @@ class DocumentIngestor:
 
     def _create_retriever(self, documents):
         try:
-            pass
+            splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
+            chunks = splitter.split_documents(documents=documents)
+
+            self.log.info("Document split into chunks", total_chunks=len(chunks), session_id = self.session_id)
+            embeddings = self.model_loader.load_embeddings()
+            vectorestore = FAISS.from_documents(documents=chunks, embedding=embeddings)
+            vectorestore.save_local(str(self.session_faiss_dir))
+            self.log.info("FAISS index saved to disk", path=str(self.session_faiss_dir), session_id = self.session_id)
+            retriever = vectorestore.as_retriever(search_type="similarity", search_kwargs = { "k": 5 })
+            return retriever
         except Exception as e:
             self.log.error("Error creating retriever. {e}")
             raise DocumentPortalException(error_message="Error creating retriever.", error_details=e) from e
