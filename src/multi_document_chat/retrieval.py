@@ -18,6 +18,7 @@ from typing import List, Optional
 from operator import itemgetter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import BaseMessage
 
 
 class ConversationalRAG:
@@ -66,20 +67,21 @@ class ConversationalRAG:
             self.log.error("Error laoding retriever from FAISS", error = str(e))
             raise DocumentPortalException(error_message="Error laoding retriever from FAISS", error_details=sys) from e
 
-    def invoke(self, user_input: str):
+    def invoke(self, user_input: str, chat_history: Optional[List[BaseMessage]] = None):
         try:
-            response = self.chain.invoke(
-                { "input": user_input }, 
-                config={"configurable": {"session_id": self.session_id}}
-                )
-            answer = response.get("answer", "No answer")
+            chat_history = chat_history or []
+            payload = { "input": user_input, "chat_history": chat_history }
+            answer = self.chain.invoke(payload)
             
             if not answer:
-                self.log.warning("No answer received", session_id = self.session_id)
+                self.log.warning("No answer generated", user_input = user_input, session_id = self.session_id)
+                return "No answer generated"
 
-            self.log.info("Chain invoked successfully", session_id=self.session_id, user_input=user_input, answer_preview=answer[:200])
+            self.log.info("Chain invoked successfully", 
+                          session_id=self.session_id, 
+                          user_input=user_input, 
+                          answer_preview=answer[:200])
             return answer
-
 
         except Exception as e:
             self.log.error("Failed to invoke conversational RAG.", error = str(e))
@@ -124,7 +126,7 @@ class ConversationalRAG:
                 | StrOutputParser()
 
             )
-            
+
             self.log.info("LCEL graph built successfully.", session_id = self.session_id)
 
         except Exception as e:
