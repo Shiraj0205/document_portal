@@ -19,7 +19,9 @@ class DocumentIngestor:
 
     SUPPORTED_FILE_TYPES = {'.pdf', '.docx', '.txt', '.md'}
 
-    def __init__(self, temp_dir: str = "data/mult_document_chat", faiss_dir: str = "faiss_index", session_id: str | None = None):
+    def __init__(self, temp_dir: str = "data/multi_document_chat", 
+                 faiss_dir: str = "faiss_index", 
+                 session_id: str | None = None):
         try:
             self.log = CustomLogger().get_logger(__name__)
             self.temp_dir = Path(temp_dir)
@@ -31,7 +33,7 @@ class DocumentIngestor:
             # Session Directories
             self.session_id = session_id or f"session_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
             self.session_temp_dir = self.temp_dir / self.session_id
-            self.session_faiss_dir = self.temp_dir / self.session_id
+            self.session_faiss_dir = self.faiss_dir / self.session_id
             self.session_temp_dir.mkdir(parents=True, exist_ok=True)
             self.session_faiss_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,17 +41,16 @@ class DocumentIngestor:
             self.log.info("Document initialized", 
                             temp_base = str(self.session_temp_dir),
                             faiis_base = str(self.faiss_dir),
-                            session_id = session_id
+                            session_id = self.session_id,
                             temp_session_dir = str(self.session_temp_dir), 
-                            faiss_session_dir=str(self.session_faiss_dir)
-                          )
+                            faiss_session_dir=str(self.session_faiss_dir))
 
         except Exception as e:
             self.log.error("Error initilizing data ingestion. {e}")
             raise DocumentPortalException(error_message="Error initilizing data ingestion", error_details=e) from e
 
 
-    def ingest_file(self, uploaded_files):
+    def ingest_files(self, uploaded_files):
         try:
             documents = []
             for uploaded_file in uploaded_files:
@@ -59,8 +60,10 @@ class DocumentIngestor:
                     continue
                 unique_filename = f"{uuid.uuid4().hex[:8]}{ext}"
                 temp_path = self.session_temp_dir / unique_filename
+
                 with open(temp_path, "wb") as f:
                     f.write(uploaded_file.read())
+
                 self.log.info("File saved for ingestion", 
                               file_name = uploaded_file.name, 
                               saved_as = str(temp_path), 
@@ -96,11 +99,15 @@ class DocumentIngestor:
 
             self.log.info("Document split into chunks", total_chunks=len(chunks), session_id = self.session_id)
             embeddings = self.model_loader.load_embeddings()
+
             vectorestore = FAISS.from_documents(documents=chunks, embedding=embeddings)
             vectorestore.save_local(str(self.session_faiss_dir))
+
             self.log.info("FAISS index saved to disk", path=str(self.session_faiss_dir), session_id = self.session_id)
+
             retriever = vectorestore.as_retriever(search_type="similarity", search_kwargs = { "k": 5 })
             return retriever
+        
         except Exception as e:
             self.log.error("Error creating retriever. {e}")
             raise DocumentPortalException(error_message="Error creating retriever.", error_details=e) from e

@@ -28,17 +28,17 @@ class ConversationalRAG:
 
     def __init__(self, session_id: str, retriever = None):
         try:
-            self.log = CustomLogger.get_logger(__name__)
+            self.log = CustomLogger().get_logger(__name__)
             self.session_id = session_id
-            self.llm = self.load_llm()
+            self.llm = self._load_llm()
             self.contextualize_prompt: ChatPromptTemplate = PROMPT_REGISTRY[PromptType.CONTEXTUALIZE_QUESTION.value]
-            self.qa_prompt = PROMPT_REGISTRY[PromptType.CONTEXT_QA.value]
+            self.qa_prompt: ChatPromptTemplate = PROMPT_REGISTRY[PromptType.CONTEXT_QA.value]
 
             if retriever is None:
                 raise ValueError("Retriever can not be None")
             
             self.retriever = retriever
-            self.chain = self._build_lcel_chain()
+            self._build_lcel_chain()
             self.log.info("ConversationalRAG RAG Initialized", session_id = self.session_id)
             
         except Exception as e:
@@ -60,7 +60,7 @@ class ConversationalRAG:
                              allow_dangerous_deserialization=True)
             
             self.retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs = {"k" : 5})
-            self._build_lcel_chain()
+            #self._build_lcel_chain()
             return self.retriever
 
         except Exception as e:
@@ -81,6 +81,7 @@ class ConversationalRAG:
                           session_id=self.session_id, 
                           user_input=user_input, 
                           answer_preview=answer[:200])
+            
             return answer
 
         except Exception as e:
@@ -90,6 +91,10 @@ class ConversationalRAG:
     def _load_llm(self):
         try:
             llm = ModelLoader().load_llm()
+
+            if not llm:
+                raise ValueError("LLM could not be loaded")
+            
             self.log.info("LLM loaded successfully.", session_id = self.session_id)
             return llm
         except Exception as e:
@@ -107,15 +112,14 @@ class ConversationalRAG:
                 { "input": itemgetter("input"), "chat_history": itemgetter("chat_history") }
                 | self.contextualize_prompt
                 | self.llm
-                | StrOutputParser
-
+                | StrOutputParser()
             )
 
             # 2 . Retrieves docs for rewritten question
             retrieve_docs = question_rewriter | self.retriever | self._format_documents
 
             # 3. Feed context, Original Input, Chat History into answer prompt
-            self.chain(
+            self.chain = (
                 {
                     "context": retrieve_docs,
                     "input": itemgetter("input"),

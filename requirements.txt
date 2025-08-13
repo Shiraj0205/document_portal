@@ -13,6 +13,6 @@ pandas
 streamlit
 langchain-core[tracing]
 pytest
-
+docx2txt
 
 -e . # For installing local packages
