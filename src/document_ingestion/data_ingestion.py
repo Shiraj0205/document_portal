@@ -18,6 +18,7 @@ from langchain_community.vectorstores import FAISS
 from utils.model_loader import ModelLoader
 from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 
 #from utils.file_io import _session_id, save_uploaded_files
 #from utils.document_ops import load_documents, concat_for_analysis, concat_for_comparison
@@ -55,8 +56,8 @@ class DocHandler:
     def __init__(self):
         pass
 
-    def save_pdf(self):
-        pass
+    def save_pdf(self, file: UploadFile = File(...)):
+        return ""
 
     def read_pdf(self):
         pass
