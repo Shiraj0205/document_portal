@@ -6,7 +6,11 @@ from typing import Optional, cast
 
 
 class DocumentPortalException(Exception):
-    """Base class for all exceptions in the Document Portal application."""
+    """Base class for all exceptions in the Document Portal application.
+
+    Args:
+        Exception (_type_): _description_
+    """
 
     def __init__(self, error_message, error_details: Optional[object] = None):
         # Normalize message
@@ -35,7 +39,7 @@ class DocumentPortalException(Exception):
             last_tb = last_tb.tb_next
 
         self.file_name = last_tb.tb_frame.f_code.co_filename if last_tb else "<unknown>"
-        self.lineno = last_tb.tb_lineno if last_tb else -1
+        self.line_number = last_tb.tb_lineno if last_tb else -1
         self.error_message = norm_msg
 
         # Full pretty traceback (if available)
@@ -48,23 +52,25 @@ class DocumentPortalException(Exception):
 
         
 
-    def __str__(self):
-        # Compact, logger-friendly message (no leading spaces)
-        base = f"Error in [{self.file_name}] at line [{self.lineno}] | Message: {self.error_message}"
+    def __str__(self) -> str:
+        """Set Compact, logger-friendly message (no leading spaces)
+
+        Returns:
+            str: Error message
+        """
+        base = f"Error in [{self.file_name}] at line [{self.line_number}] | Message: {self.error_message}"
         if self.traceback_str:
             return f"{base}\nTraceback:\n{self.traceback_str}"
         return base
 
-    def __repr__(self):
-        return f"DocumentPortalException(file={self.file_name!r}, line={self.lineno}, message={self.error_message!r})"
+    def __repr__(self) -> str:
+        """_summary_
 
-    def __str__(self):
-        return f"""
-        Error in [{self.file_name}] at line [{self.line_number}]
-        Message: {self.error_message}
-        Traceback: 
-        {self.traceback_str}
+        Returns:
+            str: User friendly exception message
         """
+        return f"DocumentPortalException(file={self.file_name!r}, line={self.line_number}, message={self.error_message!r})"
+
 
 if __name__ == "__main__":
     try:
@@ -73,4 +79,4 @@ if __name__ == "__main__":
     except Exception as e:
         app_exc = DocumentPortalException(e,sys)
         logger.error(app_exc)
-        raise app_exc
+        raise app_exc from e
