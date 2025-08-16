@@ -1,23 +1,22 @@
 import os
+from pathlib import Path
 from typing import List, Optional, Any, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
-from langchain_community.vectorstores import faiss
 from src.document_ingestion.data_ingestion import (
     DocHandler, 
     DocumentComparator,
-    ChatIngestor,
-    FaissManager
+    ChatIngestor
 )
 
 from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_compare import DocumentCompareLLM
 from src.document_chat.retrieval import ConversationalRAG
+#from logger import GLOBAL_LOGGER as log
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
 UPLOAD_BASE = os.getenv("UPLOAD_BASE", "data")
@@ -33,15 +32,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="../static"), name="static")
-templates = Jinja2Templates(directory="../templates")
+BASE_DIR = Path(__file__).resolve().parent.parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui(request: Request):
+    """Render Index.html
+
+    Args:
+        request (Request): _description_
+
+    Returns:
+        _type_: _description_
+    """
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health")
 def health() -> Dict[str, str]:
+    """Api Health Endpoint
+
+    Returns:
+        Dict[str, str]: _description_
+    """
+    #log.info("Health check passed.")
     return { "status": "ok", "service": "document_portal" }
 
 
@@ -103,6 +117,7 @@ async def analyze_document(file: UploadFile = File(...)) -> Any:
         result = analyzer.analyze_document(text)
         return JSONResponse(content=result)
     except Exception as e:
+        #log.info(f"Document analysis failed. {str(e)}")
         raise HTTPException(status_code=500, detail=f"Document analysis failed: {e}") from e
 
 
@@ -233,3 +248,5 @@ async def chat_query(
 
 # To execute fast API
 # uvicorn api.main:app --reload
+# uvicorn api.main:app --host 0.0.0.0 --port 8083 --reload
+# uvicorn api.main:app --port 8083 --reload
