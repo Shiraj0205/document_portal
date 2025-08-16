@@ -119,7 +119,7 @@ async def chat_build_index(
         )
         # NOTE: ensure your ChatIngestor saves with index_name="index" or FAISS_INDEX_NAME
         # e.g., if it calls FAISS.save_local(dir, index_name=FAISS_INDEX_NAME)
-        ci.build_retriever(
+        ci.built_retriever(
             wrapped, chunk_size=chunk_size, chunk_overlap=chunk_overlap, k=k
         )
         return {"session_id": ci.session_id, "k": k, "use_session_dirs": use_session_dirs}

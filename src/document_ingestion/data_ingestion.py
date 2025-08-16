@@ -78,7 +78,7 @@ class FaissManager:
             self._save_meta()
         return len(new_docs)
     
-    def load_or_create(self,texts:Optional[List[str]]=None, metadatas: Optional[List[dict]] = None):
+    def load_or_create(self, texts:Optional[List[str]]=None, metadatas: Optional[List[dict]] = None):
         if self._exists():
             self.vs = FAISS.load_local(
                 str(self.index_dir),
@@ -107,12 +107,15 @@ class ChatIngestor:
         try:
             self.log = CustomLogger().get_logger(__name__)
             self.model_loader = ModelLoader()
-            
+
             self.use_session = use_session_dirs
             self.session_id = session_id or _session_id()
             
-            self.temp_base = Path(temp_base); self.temp_base.mkdir(parents=True, exist_ok=True)
-            self.faiss_base = Path(faiss_base); self.faiss_base.mkdir(parents=True, exist_ok=True)
+            self.temp_base = Path(temp_base) 
+            self.temp_base.mkdir(parents=True, exist_ok=True)
+
+            self.faiss_base = Path(faiss_base)
+            self.faiss_base.mkdir(parents=True, exist_ok=True)
             
             self.temp_dir = self._resolve_dir(self.temp_base)
             self.faiss_dir = self._resolve_dir(self.faiss_base)
