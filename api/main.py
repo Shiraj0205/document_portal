@@ -1,23 +1,22 @@
 import os
+from pathlib import Path
 from typing import List, Optional, Any, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
-from langchain_community.vectorstores import faiss
 from src.document_ingestion.data_ingestion import (
     DocHandler, 
     DocumentComparator,
-    ChatIngestor,
-    FaissManager
+    ChatIngestor
 )
 
 from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_compare import DocumentCompareLLM
 from src.document_chat.retrieval import ConversationalRAG
+#from logger import GLOBAL_LOGGER as log
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
 UPLOAD_BASE = os.getenv("UPLOAD_BASE", "data")
@@ -33,15 +32,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="../static"), name="static")
-templates = Jinja2Templates(directory="../templates")
+BASE_DIR = Path(__file__).resolve().parent.parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui(request: Request):
+    """Render Index.html
+
+    Args:
+        request (Request): _description_
+
+    Returns:
+        _type_: _description_
+    """
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health")
 def health() -> Dict[str, str]:
+    """Api Health Endpoint
+
+    Returns:
+        Dict[str, str]: _description_
+    """
+    #log.info("Health check passed.")
     return { "status": "ok", "service": "document_portal" }
 
 
@@ -52,13 +66,27 @@ class FastAPIFileAdapter:
         self.name = uf.filename
 
     def getbuffer(self) -> bytes:
+        """Get File Buffer
+
+        Returns:
+            bytes: _description_
+        """
         self._uf.file.seek(0)
         return self._uf.file.read()
-    
-    
-def _read_pdf_handler(handler: DocHandler, path: str) -> str:
-    """
-    Helper function to read PDF using DocHandler
+
+def _read_pdf_handler(handler: DocHandler, 
+                      path: str) -> str:
+    """Helper function to read PDF using DocHandler
+
+    Args:
+        handler (DocHandler): _description_
+        path (str): _description_
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        str: _description_
     """
     if hasattr(handler, "read_pdf"):
         return handler.read_pdf(path)
@@ -70,8 +98,16 @@ def _read_pdf_handler(handler: DocHandler, path: str) -> str:
 
 @app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)) -> Any:
-    """
-    Analyze Document Action
+    """Analyze Document Action
+
+    Args:
+        file (UploadFile, optional): _description_. Defaults to File(...).
+
+    Raises:
+        HTTPException: _description_
+
+    Returns:
+        Any: _description_
     """
     try:
         dh = DocHandler()
@@ -81,11 +117,27 @@ async def analyze_document(file: UploadFile = File(...)) -> Any:
         result = analyzer.analyze_document(text)
         return JSONResponse(content=result)
     except Exception as e:
+        #log.info(f"Document analysis failed. {str(e)}")
         raise HTTPException(status_code=500, detail=f"Document analysis failed: {e}") from e
 
 
 @app.post("/compare")
-async def compare_documents(reference: UploadFile = File(...), actual: UploadFile = File(...)) -> Any:
+async def compare_documents(
+    reference: UploadFile = File(...), 
+    actual: UploadFile = File(...)
+    ) -> Any:
+    """_summary_
+
+    Args:
+        reference (UploadFile, optional): _description_. Defaults to File(...).
+        actual (UploadFile, optional): _description_. Defaults to File(...).
+
+    Raises:
+        HTTPException: _description_
+
+    Returns:
+        Any: _description_
+    """
     try:
         dc = DocumentComparator()
         ref_path, act_path = dc.save_uploaded_files(
@@ -100,8 +152,6 @@ async def compare_documents(reference: UploadFile = File(...), actual: UploadFil
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document comparison failed: {e}") from e
 
-    
-
 @app.post("/chat/index")
 async def chat_build_index(
     files: List[UploadFile] = File(...),
@@ -111,6 +161,22 @@ async def chat_build_index(
     chunk_overlap: int = Form(200),
     k: int = Form(5),
     ) -> Any:
+    """Generate Chat Index
+
+    Args:
+        files (List[UploadFile], optional): _description_. Defaults to File(...).
+        session_id (Optional[str], optional): _description_. Defaults to Form(None).
+        use_session_dirs (bool, optional): _description_. Defaults to Form(True).
+        chunk_size (int, optional): _description_. Defaults to Form(1000).
+        chunk_overlap (int, optional): _description_. Defaults to Form(200).
+        k (int, optional): _description_. Defaults to Form(5).
+
+    Raises:
+        HTTPException: _description_
+
+    Returns:
+        Any: _description_
+    """
     try:
         wrapped = [FastAPIFileAdapter(f) for f in files]
         ci = ChatIngestor(
@@ -137,14 +203,33 @@ async def chat_query(
     use_session_dirs: bool = Form(True),
     k: int = Form(5),
     ) -> Any:
+    """Generate Response to user Chat Query
+
+    Args:
+        question (str, optional): _description_. Defaults to Form(...).
+        session_id (Optional[str], optional): _description_. Defaults to Form(None).
+        use_session_dirs (bool, optional): _description_. Defaults to Form(True).
+        k (int, optional): _description_. Defaults to Form(5).
+
+    Raises:
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+
+    Returns:
+        Any: _description_
+    """
     try:
         if use_session_dirs and not session_id:
-            raise HTTPException(status_code=400, detail="session_id is required when use_session_dirs=True")
+            raise HTTPException(status_code=400,
+                                detail="session_id is required when use_session_dirs=True")
 
         # Prepare FAISS Index Path
         index_dir = os.path.join(FAISS_BASE, session_id) if use_session_dirs else FAISS_BASE  # type: ignore
+
         if not os.path.isdir(index_dir):
-            raise HTTPException(status_code=404, detail=f"FAISS index not found at: {index_dir}")
+            raise HTTPException(status_code=404, 
+                                detail=f"FAISS index not found at: {index_dir}")
 
         # Initialize LCEL-style RAG pipeline
         rag = ConversationalRAG(session_id=session_id)
@@ -161,6 +246,7 @@ async def chat_query(
         raise HTTPException(status_code=500, detail=f"Query failed: {e}") from e
 
 
-
 # To execute fast API
 # uvicorn api.main:app --reload
+# uvicorn api.main:app --host 0.0.0.0 --port 8083 --reload
+# uvicorn api.main:app --port 8083 --reload

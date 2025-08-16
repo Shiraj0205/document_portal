@@ -10,3 +10,4 @@ notebook/logs/*
 data/
 archive
 faiss_index/
+api/logs/*
