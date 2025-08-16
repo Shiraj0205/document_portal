@@ -10,7 +10,7 @@ from pathlib import Path
 from langchain_community.vectorstores import faiss
 from src.document_ingestion.data_ingestion import (
     DocHandler, 
-    DocComparator,
+    DocumentComparator,
     ChatIngestor,
     FaissManager
 )
@@ -60,11 +60,13 @@ def _read_pdf_handler(handler: DocHandler, path: str) -> str:
     """
     Helper function to read PDF using DocHandler
     """
-    try:
-        pass
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading pdf file. {str(e)}")
-
+    if hasattr(handler, "read_pdf"):
+        return handler.read_pdf(path)
+    
+    if hasattr(handler, "read_"):
+        return handler.read_(path)
+    
+    raise RuntimeError("DocHandler has neither read_pdf nor read_ method.")
 
 @app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)) -> Any:
@@ -79,24 +81,24 @@ async def analyze_document(file: UploadFile = File(...)) -> Any:
         result = analyzer.analyze_document(text)
         return JSONResponse(content=result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Document analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Document analysis failed: {e}") from e
 
 
 @app.post("/compare")
 async def compare_documents(reference: UploadFile = File(...), actual: UploadFile = File(...)) -> Any:
     try:
-        dc = DocComparator()
+        dc = DocumentComparator()
         ref_path, act_path = dc.save_uploaded_files(
             FastAPIFileAdapter(reference), FastAPIFileAdapter(actual)
         )
         _ = ref_path, act_path
         combined_text = dc.combine_documents()
         comp = DocumentCompareLLM()
-        df = comp.compare_documents(combined_text)
+        df = comp.compare_document(combined_text)
         return {"rows": df.to_dict(orient="records"), "session_id": dc.session_id}
 
-    except HTTPException:
-        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document comparison failed: {e}") from e
 
     
 
@@ -119,13 +121,13 @@ async def chat_build_index(
         )
         # NOTE: ensure your ChatIngestor saves with index_name="index" or FAISS_INDEX_NAME
         # e.g., if it calls FAISS.save_local(dir, index_name=FAISS_INDEX_NAME)
-        ci.built_retriever(
+        ci.built_retriver(
             wrapped, chunk_size=chunk_size, chunk_overlap=chunk_overlap, k=k
         )
         return {"session_id": ci.session_id, "k": k, "use_session_dirs": use_session_dirs}
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {e}") from e
     
 
 @app.post("/chat/query")
@@ -156,7 +158,7 @@ async def chat_query(
             "engine": "LCEL-RAG"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {e}") from e
 
 
 
