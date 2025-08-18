@@ -16,6 +16,7 @@ from src.document_ingestion.data_ingestion import (
 from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_compare import DocumentCompareLLM
 from src.document_chat.retrieval import ConversationalRAG
+from utils.document_ops import FastAPIFileAdapter, read_pdf_handler
 #from logger import GLOBAL_LOGGER as log
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
@@ -59,43 +60,6 @@ def health() -> Dict[str, str]:
     return { "status": "ok", "service": "document_portal" }
 
 
-class FastAPIFileAdapter:
-    """Adapt FastAPI UploadFile -> .name + .getbuffer() API"""
-    def __init__(self, uf: UploadFile):
-        self._uf = uf
-        self.name = uf.filename
-
-    def getbuffer(self) -> bytes:
-        """Get File Buffer
-
-        Returns:
-            bytes: _description_
-        """
-        self._uf.file.seek(0)
-        return self._uf.file.read()
-
-def _read_pdf_handler(handler: DocHandler, 
-                      path: str) -> str:
-    """Helper function to read PDF using DocHandler
-
-    Args:
-        handler (DocHandler): _description_
-        path (str): _description_
-
-    Raises:
-        RuntimeError: _description_
-
-    Returns:
-        str: _description_
-    """
-    if hasattr(handler, "read_pdf"):
-        return handler.read_pdf(path)
-    
-    if hasattr(handler, "read_"):
-        return handler.read_(path)
-    
-    raise RuntimeError("DocHandler has neither read_pdf nor read_ method.")
-
 @app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)) -> Any:
     """Analyze Document Action
@@ -112,7 +76,7 @@ async def analyze_document(file: UploadFile = File(...)) -> Any:
     try:
         dh = DocHandler()
         saved_path = dh.save_pdf(FastAPIFileAdapter(file))
-        text = _read_pdf_handler(dh, saved_path)
+        text = read_pdf_handler(dh, saved_path)
         analyzer = DocumentAnalyzer()
         result = analyzer.analyze_document(text)
         return JSONResponse(content=result)

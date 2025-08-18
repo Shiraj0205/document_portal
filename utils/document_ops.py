@@ -18,6 +18,8 @@ from langchain_community.vectorstores import FAISS
 from utils.model_loader import ModelLoader
 from logger.custom_logger import CustomLogger
 from exception.custom_exception import DocumentPortalException
+from fastapi import UploadFile
+
 
 log = CustomLogger().get_logger(__name__)
 
@@ -56,3 +58,39 @@ def concat_for_comparison(ref_docs: List[Document], act_docs: List[Document]) ->
     left = concat_for_analysis(ref_docs)
     right = concat_for_analysis(act_docs)
     return f"<<REFERENCE_DOCUMENTS>>\n{left}\n\n<<ACTUAL_DOCUMENTS>>\n{right}"
+
+class FastAPIFileAdapter:
+    """Adapt FastAPI UploadFile -> .name + .getbuffer() API"""
+    def __init__(self, uf: UploadFile):
+        self._uf = uf
+        self.name = uf.filename
+
+    def getbuffer(self) -> bytes:
+        """Get File Buffer
+
+        Returns:
+            bytes: _description_
+        """
+        self._uf.file.seek(0)
+        return self._uf.file.read()
+
+def read_pdf_handler(handler, path: str) -> str:
+    """Helper function to read PDF using DocHandler
+
+    Args:
+        handler (DocHandler): _description_
+        path (str): _description_
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        str: _description_
+    """
+    if hasattr(handler, "read_pdf"):
+        return handler.read_pdf(path)
+    
+    if hasattr(handler, "read_"):
+        return handler.read_(path)
+    
+    raise RuntimeError("DocHandler has neither read_pdf nor read_ method.")
