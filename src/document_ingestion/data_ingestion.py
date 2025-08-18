@@ -26,6 +26,8 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 # FAISS Manager (load-or-create)
 class FaissManager:
+    """FAISS Manager Class
+    """
     def __init__(self, index_dir: Path, model_loader: Optional[ModelLoader] = None):
         self.index_dir = Path(index_dir)
         self.index_dir.mkdir(parents=True, exist_ok=True)
@@ -60,18 +62,34 @@ class FaissManager:
         
         
     def add_documents(self,docs: List[Document]):
+        """Add Documents to existing index if not duplicate.
+
+        Args:
+            docs (List[Document]): _description_
+
+        Raises:
+            RuntimeError: _description_
+
+        Returns:
+            _type_: _description_
+        """
         if self.vs is None:
             raise RuntimeError("Call load_or_create() before add_documents_idempotent().")
         
         new_docs: List[Document] = []
         
+        # Create unique key for each document (pdf, txt, docs etc.) and add to metadata. 
+        # If key exists continue else add new document
+        # This will avoid ingesting duplicate data.
+        # Iterate through chunks / documents and create unique key
         for d in docs:
             key = self._fingerprint(d.page_content, d.metadata or {})
             if key in self._meta["rows"]:
                 continue
             self._meta["rows"][key] = True
             new_docs.append(d)
-            
+        
+        # Add new documents to index and save
         if new_docs:
             self.vs.add_documents(new_docs)
             self.vs.save_local(str(self.index_dir))
@@ -79,6 +97,19 @@ class FaissManager:
         return len(new_docs)
     
     def load_or_create(self, texts:Optional[List[str]]=None, metadatas: Optional[List[dict]] = None):
+        """Load existing index or create new one if not exists.
+
+        Args:
+            texts (Optional[List[str]], optional): _description_. Defaults to None.
+            metadatas (Optional[List[dict]], optional): _description_. Defaults to None.
+
+        Raises:
+            DocumentPortalException: _description_
+
+        Returns:
+            _type_: _description_
+        """
+        # Index exists, load and return
         if self._exists():
             self.vs = FAISS.load_local(
                 str(self.index_dir),
@@ -89,6 +120,7 @@ class FaissManager:
         if not texts:
             raise DocumentPortalException("No existing FAISS index and no data to create one", sys)
         
+        # First time execution. Create new index
         self.vs = FAISS.from_texts(texts=texts, embedding=self.emb, metadatas=metadatas or [])
         self.vs.save_local(str(self.index_dir))
         return self.vs
@@ -149,7 +181,23 @@ class ChatIngestor:
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
         k: int = 5,):
+        """ Build FAISS retriever from uploaded files.
+
+        Args:
+            uploaded_files (Iterable): _description_
+            chunk_size (int, optional): _description_. Defaults to 1000.
+            chunk_overlap (int, optional): _description_. Defaults to 200.
+            k (int, optional): _description_. Defaults to 5.
+
+        Raises:
+            ValueError: _description_
+            DocumentPortalException: _description_
+
+        Returns:
+            _type_: _description_
+        """
         try:
+            # Store the file in session directory
             paths = save_uploaded_files(uploaded_files, self.temp_dir)
             docs = load_documents(paths)
             if not docs:
@@ -175,9 +223,6 @@ class ChatIngestor:
             self.log.error("Failed to build retriever", error=str(e))
             raise DocumentPortalException("Failed to build retriever", e) from e
 
-            
-        
-            
 class DocHandler:
     """
     Save PDF, Read Data for analysis.
@@ -191,6 +236,18 @@ class DocHandler:
         self.log.info("DocHandler initialized", session_id=self.session_id, session_path=self.session_path)
 
     def save_pdf(self, uploaded_file) -> str:
+        """Save uploaded PDF to session directory.
+
+        Args:
+            uploaded_file (_type_): _description_
+
+        Raises:
+            ValueError: _description_
+            DocumentPortalException: _description_
+
+        Returns:
+            str: _description_
+        """
         try:
             filename = os.path.basename(uploaded_file.name)
 
@@ -213,6 +270,17 @@ class DocHandler:
             raise DocumentPortalException(f"Failed to save PDF: {str(e)}", e) from e
 
     def read_pdf(self, pdf_path: str) -> str:
+        """Read PDF content using PyMuPDF.
+
+        Args:
+            pdf_path (str): _description_
+
+        Raises:
+            DocumentPortalException: _description_
+
+        Returns:
+            str: _description_
+        """
         try:
             text_chunks = []
 
@@ -243,7 +311,21 @@ class DocumentComparator:
         self.session_path.mkdir(parents=True, exist_ok=True)
         self.log.info("DocumentComparator initialized", session_path=str(self.session_path))
 
+
     def save_uploaded_files(self, reference_file, actual_file):
+        """Save uploaded PDF files to session directory.
+
+        Args:
+            reference_file (_type_): _description_
+            actual_file (_type_): _description_
+
+        Raises:
+            ValueError: _description_
+            DocumentPortalException: _description_
+
+        Returns:
+            _type_: _description_
+        """
         try:
             ref_path = self.session_path / reference_file.name
             act_path = self.session_path / actual_file.name
@@ -262,6 +344,18 @@ class DocumentComparator:
             raise DocumentPortalException("Error saving files", e) from e
 
     def read_pdf(self, pdf_path: Path) -> str:
+        """Read PDF content using PyMuPDF.
+
+        Args:
+            pdf_path (Path): _description_
+
+        Raises:
+            ValueError: _description_
+            DocumentPortalException: _description_
+
+        Returns:
+            str: _description_
+        """
         try:
             with fitz.open(pdf_path) as doc:
                 if doc.is_encrypted:
@@ -279,6 +373,9 @@ class DocumentComparator:
             raise DocumentPortalException("Error reading PDF", e) from e
 
     def combine_documents(self) -> str:
+        """Combine all PDFs in the session directory into a single text.
+        Raises:
+            DocumentPortalException: _description_"""
         try:
             doc_parts = []
             for file in sorted(self.session_path.iterdir()):
