@@ -9,5 +9,6 @@ logs/*
 notebook/logs/*
 data/
 archive
-faiss_index/
+faiss_index/*
 api/logs/*
+api/faiss_index
