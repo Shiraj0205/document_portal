@@ -48,11 +48,9 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/documentportaltd",
-          "awslogs-region": "us-east-2",
+          "awslogs-region": "ap-southeast-2",
           "awslogs-stream-prefix": "ecs",
-          "awslogs-create-group": "false",
-          "mode": "non-blocking",
-          "max-buffer-size": "25m"
+          "awslogs-create-group": "true"
         }
       }
     }
