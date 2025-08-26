@@ -1,39 +1,37 @@
 import os
-from datetime import datetime
 import logging
+from datetime import datetime
 import structlog
 
 class CustomLogger:
-
     def __init__(self, log_dir="logs"):
-        log_dir = os.path.join(os.getcwd(), log_dir)
-        os.makedirs(log_dir, exist_ok=True)
+        # Ensure logs directory exists
+        self.logs_dir = os.path.join(os.getcwd(), log_dir)
+        os.makedirs(self.logs_dir, exist_ok=True)
 
-        # Create a log file with the current timestamp
-        log_file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".log"
-        self.log_file_path = os.path.join(log_dir, log_file_name)
+        # Timestamped log file (for persistence)
+        log_file = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
+        self.log_file_path = os.path.join(self.logs_dir, log_file)
 
-
-    # Create a logger instance
     def get_logger(self, name=__file__):
         logger_name = os.path.basename(name)
-        # configure logging for file (json format)
+
+        # Configure logging for console + file (both JSON)
         file_handler = logging.FileHandler(self.log_file_path)
         file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(logging.Formatter("%(message)s")) # Raw json format
+        file_handler.setFormatter(logging.Formatter("%(message)s"))  # Raw JSON lines
 
-        # Configure logging for console output
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(logging.Formatter("%(message)s")) # Raw json format
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
 
         logging.basicConfig(
             level=logging.INFO,
-            format="%(message)s",
+            format="%(message)s",  # Structlog will handle JSON rendering
             handlers=[console_handler, file_handler]
         )
 
-        # configure the structlog
+        # Configure structlog for JSON structured logging
         structlog.configure(
             processors=[
                 structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
@@ -41,15 +39,15 @@ class CustomLogger:
                 structlog.processors.EventRenamer(to="event"),
                 structlog.processors.JSONRenderer()
             ],
-            #context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
-            #wrapper_class=structlog.stdlib.BoundLogger,
-            cache_logger_on_first_use=True
+            cache_logger_on_first_use=True,
         )
+
         return structlog.get_logger(logger_name)
 
 
-if __name__ == "__main__":
-    logger = CustomLogger()
-    logger = logger.get_logger(__file__)
-    logger.info("Custom logger initialized.")
+# # --- Usage Example ---
+# if __name__ == "__main__":
+#     logger = CustomLogger().get_logger(__file__)
+#     logger.info("User uploaded a file", user_id=123, filename="report.pdf")
+#     logger.error("Failed to process PDF", error="File not found", user_id=123)

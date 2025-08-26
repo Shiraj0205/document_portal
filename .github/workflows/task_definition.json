@@ -28,7 +28,7 @@
       ],
       "secrets": [
         {
-          "name": "API_KEYS",
+          "name": "api_keys",
           "valueFrom": "arn:aws:secretsmanager:us-east-2:577885025858:secret:api_keys-atIRLH"
         }
         
