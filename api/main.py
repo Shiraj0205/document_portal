@@ -17,7 +17,7 @@ from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_compare import DocumentCompareLLM
 from src.document_chat.retrieval import ConversationalRAG
 from utils.document_ops import FastAPIFileAdapter, read_pdf_handler
-#from logger import GLOBAL_LOGGER as log
+from logger import GLOBAL_LOGGER as log
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
 UPLOAD_BASE = os.getenv("UPLOAD_BASE", "data")
